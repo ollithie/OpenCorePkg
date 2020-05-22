@@ -845,6 +845,44 @@ OcCpuCorrectFlexRatio (
   }
 }
 
+STATIC
+VOID
+EFIAPI
+SyncTscOnCpu (
+  IN  VOID  *Buffer
+  )
+{
+  UINT64   *Tsc;
+  Tsc = Buffer;
+  AsmWriteMsr64 (MSR_IA32_TSC, *Tsc);
+}
+
+EFI_STATUS
+OcCpuFixTscSync (
+  IN UINT64  Timeout
+  )
+{
+  EFI_STATUS                Status;
+  EFI_MP_SERVICES_PROTOCOL  *MpServices;
+  UINT64                    Tsc;
+
+  Status = gBS->LocateProtocol (&gEfiMpServiceProtocolGuid, NULL, (VOID **) &MpServices);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_INFO, "Failed to find EFI_MP_SERVICES_PROTOCOL - %r\n", Status));
+    return Status;
+  }
+
+  Tsc = AsmReadMsr64 (MSR_IA32_TSC);
+
+  Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Tsc, NULL);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_INFO, "Failed to StartupAllAPs - %r\n", Status));
+    return Status;
+  }
+
+  return EFI_SUCCESS;
+}
+
 OC_CPU_GENERATION
 OcCpuGetGeneration (
   VOID

@@ -437,6 +437,10 @@ OcLoadUefiSupport (
     OcCpuCorrectFlexRatio (CpuInfo);
   }
 
+  {
+    OcCpuFixTscSync (500000);
+  }
+
   DEBUG ((
     DEBUG_INFO,
     "OC: RBVR %d DDBR %d\n",

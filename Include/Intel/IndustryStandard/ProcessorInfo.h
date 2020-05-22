@@ -129,6 +129,11 @@
 #define MSR_DRAM_PERF_STATUS              0x61B
 #define MSR_DRAM_POWER_INFO               0x61C
 
+//
+// TSC MSR.
+//
+#define MSR_IA32_TSC                      0x10
+
 /// x86 Page Address Translation
 enum {
   PageAddressTranslationUncached            = 0,

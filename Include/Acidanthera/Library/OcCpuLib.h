@@ -164,6 +164,20 @@ OcCpuCorrectFlexRatio (
   );
 
 /**
+  Syncrhonise TSC on all cores (needed on server chipsets).
+  This does not replace VoodooTscSync due to the need to sync on S3 as well.
+  However, it lets debug kernels to work.
+
+  @param[in]  Timeout   Amount of time to wait for CPU core rendezvous.
+
+  @retval EFI_SUCCESS on success.
+**/
+EFI_STATUS
+OcCpuFixTscSync (
+  IN UINT64  Timeout
+  );
+
+/**
   Converts CPUID Family and Model extracted from EAX
   CPUID (1) call to AppleFamily value. This implements
   cpuid_set_cpufamily functionality as it is in XNU.
