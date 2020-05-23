@@ -37,8 +37,10 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <Library/UefiLib.h>
 #include <Library/DebugLib.h>
+#include <Library/PcdLib.h>
 #include <Library/PrintLib.h>
 #include <Library/BaseLib.h>
+#include <Library/OcConsoleLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/BaseMemoryLib.h>
@@ -223,6 +225,59 @@ BiosVideoDriverBindingStop (
   IN  EFI_HANDLE                   Controller,
   IN  UINTN                        NumberOfChildren,
   IN  EFI_HANDLE                   *ChildHandleBuffer
+  );
+
+/**
+  Install child handle for a detect BiosVideo device and install related protocol
+  into this handle, such as EFI_GRAPHIC_OUTPUT_PROTOCOL.
+
+  @param This                Instance pointer of EFI_DRIVER_BINDING_PROTOCOL
+  @param ParentHandle        Parent's controller handle
+  @param ParentPciIo         Parent's EFI_PCI_IO_PROTOCOL instance pointer
+  @param ParentLegacy8259    Parent's EFI_LEGACY_8259_PROTOCOL instance pointer
+  @param ParentDevicePath    Parent's BIOS Video controller device path
+  @param RemainingDevicePath Remaining device path node instance for children.
+
+  @return whether success to create children handle for a VGA device and install
+          related protocol into new children handle.
+
+**/
+EFI_STATUS
+BiosVideoChildHandleInstall (
+  IN  EFI_DRIVER_BINDING_PROTOCOL    *This,
+  IN  EFI_HANDLE                     ParentHandle,
+  IN  EFI_PCI_IO_PROTOCOL            *ParentPciIo,
+  IN  EFI_LEGACY_8259_PROTOCOL       *ParentLegacy8259,
+  IN  THUNK_CONTEXT                  *ThunkContext,
+  IN  EFI_DEVICE_PATH_PROTOCOL       *ParentDevicePath,
+  IN  EFI_DEVICE_PATH_PROTOCOL       *RemainingDevicePath
+  );
+
+/**
+  Deregister an video child handle and free resources
+
+  @param This            Protocol instance pointer.
+  @param Controller      Video controller handle
+  @param Handle          Video child handle
+
+  @return EFI_STATUS
+
+**/
+EFI_STATUS
+BiosVideoChildHandleUninstall (
+  EFI_DRIVER_BINDING_PROTOCOL    *This,
+  EFI_HANDLE                     Controller,
+  EFI_HANDLE                     Handle
+  );
+
+/**
+  Collect the resource from destroyed bios video device.
+
+  @param BiosVideoPrivate   Video child device private data structure
+**/
+VOID
+BiosVideoDeviceReleaseResource (
+  BIOS_VIDEO_DEV  *BiosVideoPrivate
   );
 
 //

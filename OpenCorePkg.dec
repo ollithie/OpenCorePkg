@@ -673,6 +673,12 @@
   ## @Prompt Disconnect other drivers for the USB KeyBoard Driver to take precedence over them.
   gOpenCorePkgTokenSpaceGuid.PcdUsbKbDriverTakePrecedence|TRUE|BOOLEAN|0x00000004
 
+  ## Indicates if BiosVideo Driver reconnects other drivers to take precedence.<BR><BR>
+  ##   TRUE  - BiosVideo Driver will reconnect other drivers.<BR>
+  ##   FALSE - BiosVideo Driver will not reconnect other drivers.<BR>
+  ## @Prompt Reconnect other drivers for the BiosVideo Driver to take precedence over them.
+  gOpenCorePkgTokenSpaceGuid.PcdEnableReconnectGopInBiosVideo|TRUE|BOOLEAN|0x00000005
+
 [PcdsFixedAtBuild]
   ## Defines the Console Control initialization mode set on entry.<BR><BR>
   ##   0 - EfiConsoleControlScreenText<BR>
