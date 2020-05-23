@@ -384,7 +384,11 @@ ScanIntelProcessor (
     //
     // Determine our core crystal clock frequency
     //
-    Cpu->ARTFrequency = InternalCalculateARTFrequencyIntel (&Cpu->CPUFrequencyFromART, Recalculate);
+    Cpu->ARTFrequency = InternalCalculateARTFrequencyIntel (
+      &Cpu->CPUFrequencyFromART,
+      &Cpu->TscAdjust,
+      Recalculate
+      );
 
     //
     // Calculate the TSC frequency only if ART frequency is not available or we are in debug builds.
@@ -857,30 +861,71 @@ SyncTscOnCpu (
   AsmWriteMsr64 (MSR_IA32_TSC, *Tsc);
 }
 
-EFI_STATUS
-OcCpuFixTscSync (
-  IN UINT64  Timeout
+STATIC
+VOID
+EFIAPI
+ResetAdjustTsc (
+  IN  VOID  *Buffer
   )
 {
-  EFI_STATUS                Status;
-  EFI_MP_SERVICES_PROTOCOL  *MpServices;
-  UINT64                    Tsc;
+  AsmWriteMsr64 (MSR_IA32_TSC_ADJUST, 0);
+}
 
-  Status = gBS->LocateProtocol (&gEfiMpServiceProtocolGuid, NULL, (VOID **) &MpServices);
+EFI_STATUS
+OcCpuCorrectTscSync (
+  IN OC_CPU_INFO   *Cpu,
+  IN UINTN         Timeout
+  )
+{
+  EFI_STATUS                          Status;
+  EFI_MP_SERVICES_PROTOCOL            *MpServices;
+  FRAMEWORK_EFI_MP_SERVICES_PROTOCOL  *FrameworkMpServices;
+  UINT64                              Tsc;
+
+  Status = gBS->LocateProtocol (
+    &gEfiMpServiceProtocolGuid,
+    NULL,
+    (VOID **) &MpServices
+    );
+
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "Failed to find EFI_MP_SERVICES_PROTOCOL - %r\n", Status));
-    return Status;
+    MpServices = NULL;
+    Status = gBS->LocateProtocol (
+      &gFrameworkEfiMpServiceProtocolGuid,
+      NULL,
+      (VOID **) &FrameworkMpServices
+      );
+
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_INFO, "OCCPU: Failed to find mp services - %r\n", Status));
+      return Status;
+    }
   }
 
   Tsc = AsmReadMsr64 (MSR_IA32_TSC);
-
-  Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Tsc, NULL);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "Failed to StartupAllAPs - %r\n", Status));
-    return Status;
+  if (MpServices != NULL) {
+    Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Tsc, NULL);
+  } else {
+    Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Tsc, NULL);
   }
 
-  return EFI_SUCCESS;
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_INFO, "OCCPU: Failed to reset TSC - %r\n", Status));
+  }
+
+  if (Cpu->TscAdjust > 0) {
+    if (MpServices != NULL) {
+      Status = MpServices->StartupAllAPs (MpServices, ResetAdjustTsc, TRUE, NULL, Timeout, NULL, NULL);
+    } else {
+      Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, ResetAdjustTsc, TRUE, NULL, Timeout, NULL, NULL);
+    }
+
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_INFO, "OCCPU: Failed to reset adjust TSC - %r\n", Status));
+    }
+  }
+
+  return Status;
 }
 
 OC_CPU_GENERATION

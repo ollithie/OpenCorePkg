@@ -438,7 +438,7 @@ OcLoadUefiSupport (
   }
 
   {
-    OcCpuFixTscSync (500000);
+    OcCpuCorrectTscSync (CpuInfo, 500000);
   }
 
   DEBUG ((
