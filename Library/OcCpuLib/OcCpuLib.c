@@ -21,6 +21,7 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/OcCpuLib.h>
+#include <Library/SynchronizationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <IndustryStandard/ProcessorInfo.h>
 #include <Register/Microcode.h>
@@ -856,9 +857,16 @@ SyncTscOnCpu (
   IN  VOID  *Buffer
   )
 {
-  UINT64   *Tsc;
-  Tsc = Buffer;
-  AsmWriteMsr64 (MSR_IA32_TSC, *Tsc);
+  OC_CPU_TSC_SYNC   *Sync;
+  Sync = Buffer;
+
+  InterlockedIncrement (&Sync->CurrentCount);
+
+  while (Sync->CurrentCount < Sync->ThreadCount) {
+    // Busy-wait on all CPU cores.
+  }
+
+  AsmWriteMsr64 (MSR_IA32_TSC, Sync->Tsc);
 }
 
 STATIC
@@ -880,7 +888,8 @@ OcCpuCorrectTscSync (
   EFI_STATUS                          Status;
   EFI_MP_SERVICES_PROTOCOL            *MpServices;
   FRAMEWORK_EFI_MP_SERVICES_PROTOCOL  *FrameworkMpServices;
-  UINT64                              Tsc;
+  OC_CPU_TSC_SYNC                     Sync;
+  BOOLEAN                             InterruptState;
 
   Status = gBS->LocateProtocol (
     &gEfiMpServiceProtocolGuid,
@@ -902,12 +911,19 @@ OcCpuCorrectTscSync (
     }
   }
 
-  Tsc = AsmReadMsr64 (MSR_IA32_TSC);
+  InterruptState = SaveAndDisableInterrupts ();
+
+  Sync.Tsc = AsmReadTsc ();
+  Sync.CurrentCount = 0;
+  Sync.ThreadCount = Cpu->ThreadCount;
+
   if (MpServices != NULL) {
-    Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Tsc, NULL);
+    Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Sync, NULL);
   } else {
-    Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Tsc, NULL);
+    Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Sync, NULL);
   }
+
+  SetInterruptState (InterruptState);
 
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_INFO, "OCCPU: Failed to reset TSC - %r\n", Status));
