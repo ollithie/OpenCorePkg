@@ -918,9 +918,9 @@ OcCpuCorrectTscSync (
   Sync.ThreadCount = Cpu->ThreadCount;
 
   if (MpServices != NULL) {
-    Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Sync, NULL);
+    Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, FALSE, NULL, Timeout, &Sync, NULL);
   } else {
-    Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, SyncTscOnCpu, TRUE, NULL, Timeout, &Sync, NULL);
+    Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, SyncTscOnCpu, FALSE, NULL, Timeout, &Sync, NULL);
   }
 
   SetInterruptState (InterruptState);
@@ -931,9 +931,9 @@ OcCpuCorrectTscSync (
 
   if (Cpu->TscAdjust > 0) {
     if (MpServices != NULL) {
-      Status = MpServices->StartupAllAPs (MpServices, ResetAdjustTsc, TRUE, NULL, Timeout, NULL, NULL);
+      Status = MpServices->StartupAllAPs (MpServices, ResetAdjustTsc, FALSE, NULL, Timeout, NULL, NULL);
     } else {
-      Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, ResetAdjustTsc, TRUE, NULL, Timeout, NULL, NULL);
+      Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, ResetAdjustTsc, FALSE, NULL, Timeout, NULL, NULL);
     }
 
     if (EFI_ERROR (Status)) {
