@@ -857,16 +857,9 @@ SyncTscOnCpu (
   IN  VOID  *Buffer
   )
 {
-  OC_CPU_TSC_SYNC   *Sync;
-  Sync = Buffer;
-
-  InterlockedIncrement (&Sync->CurrentCount);
-
-  while (Sync->CurrentCount < Sync->ThreadCount) {
-    // Busy-wait on all CPU cores.
-  }
-
-  AsmWriteMsr64 (MSR_IA32_TSC, Sync->Tsc);
+  UINT64  *Tsc;
+  Tsc = Buffer;
+  AsmWriteMsr64 (MSR_IA32_TSC, *Tsc);
 }
 
 STATIC
@@ -888,7 +881,7 @@ OcCpuCorrectTscSync (
   EFI_STATUS                          Status;
   EFI_MP_SERVICES_PROTOCOL            *MpServices;
   FRAMEWORK_EFI_MP_SERVICES_PROTOCOL  *FrameworkMpServices;
-  OC_CPU_TSC_SYNC                     Sync;
+  UINT64                              Tsc;
   BOOLEAN                             InterruptState;
 
   Status = gBS->LocateProtocol (
@@ -913,14 +906,14 @@ OcCpuCorrectTscSync (
 
   InterruptState = SaveAndDisableInterrupts ();
 
-  Sync.Tsc = AsmReadTsc ();
-  Sync.CurrentCount = 0;
-  Sync.ThreadCount = Cpu->ThreadCount;
+  Tsc = AsmReadTsc ();
+
+  ResetAdjustTsc (&Tsc);
 
   if (MpServices != NULL) {
-    Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, FALSE, NULL, Timeout, &Sync, NULL);
+    Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, FALSE, NULL, Timeout, &Tsc, NULL);
   } else {
-    Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, SyncTscOnCpu, FALSE, NULL, Timeout, &Sync, NULL);
+    Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, SyncTscOnCpu, FALSE, NULL, Timeout, &Tsc, NULL);
   }
 
   SetInterruptState (InterruptState);
@@ -930,11 +923,17 @@ OcCpuCorrectTscSync (
   }
 
   if (Cpu->TscAdjust > 0) {
+    InterruptState = SaveAndDisableInterrupts ();
+
+    ResetAdjustTsc (NULL);
+
     if (MpServices != NULL) {
       Status = MpServices->StartupAllAPs (MpServices, ResetAdjustTsc, FALSE, NULL, Timeout, NULL, NULL);
     } else {
       Status = FrameworkMpServices->StartupAllAPs (FrameworkMpServices, ResetAdjustTsc, FALSE, NULL, Timeout, NULL, NULL);
     }
+
+    SetInterruptState (InterruptState);
 
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_INFO, "OCCPU: Failed to reset adjust TSC - %r\n", Status));
