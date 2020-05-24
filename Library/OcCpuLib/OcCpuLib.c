@@ -908,7 +908,7 @@ OcCpuCorrectTscSync (
 
   Tsc = AsmReadTsc ();
 
-  ResetAdjustTsc (&Tsc);
+  SyncTscOnCpu (&Tsc);
 
   if (MpServices != NULL) {
     Status = MpServices->StartupAllAPs (MpServices, SyncTscOnCpu, FALSE, NULL, Timeout, &Tsc, NULL);
