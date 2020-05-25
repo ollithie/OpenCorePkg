@@ -940,6 +940,8 @@ OcCpuCorrectTscSync (
     }
   }
 
+  DEBUG ((DEBUG_INFO, "OCCPU: Completed TSC sync with code - %r\n", Status));
+
   return Status;
 }
 
